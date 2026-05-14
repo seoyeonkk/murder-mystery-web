@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 1120" role="img" aria-labelledby="title desc">
+  <title id="title">검은 유리 온실 사건 현장</title>
+  <desc id="desc">폭풍 속 유리 온실, 증거 핀, 검은 유리 테이블이 있는 머더미스터리 장면</desc>
+  <defs>
+    <linearGradient id="night" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0a110d"/>
+      <stop offset="0.48" stop-color="#243323"/>
+      <stop offset="1" stop-color="#15100d"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#b7c5a0" stop-opacity=".14"/>
+      <stop offset=".5" stop-color="#f3ead8" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#8c2b24" stop-opacity=".18"/>
+    </linearGradient>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 .18"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="960" height="1120" fill="url(#night)"/>
+  <rect width="960" height="1120" filter="url(#grain)" opacity=".55"/>
+  <path d="M76 214 480 48l404 166v736H76z" fill="#10120f" stroke="#c8a260" stroke-opacity=".42" stroke-width="4"/>
+  <path d="M130 262 480 116l350 146v640H130z" fill="url(#glass)" stroke="#f3ead8" stroke-opacity=".16" stroke-width="3"/>
+  <g stroke="#f3ead8" stroke-opacity=".16" stroke-width="3">
+    <path d="M480 116v786M130 262h700M130 392h700M130 522h700M130 652h700M130 782h700"/>
+    <path d="M230 220v682M330 178v724M630 178v724M730 220v682"/>
+    <path d="M130 262 480 902 830 262M480 116 130 902M480 116 830 902"/>
+  </g>
+  <ellipse cx="480" cy="632" rx="174" ry="82" fill="#070807" stroke="#c8a260" stroke-width="4"/>
+  <ellipse cx="480" cy="620" rx="150" ry="55" fill="#15120f" stroke="#f3ead8" stroke-opacity=".25" stroke-width="2"/>
+  <path d="M332 611c82 36 205 36 296 0" fill="none" stroke="#f3ead8" stroke-opacity=".28" stroke-width="8"/>
+  <g filter="url(#glow)">
+    <circle cx="410" cy="598" r="8" fill="#9e3028"/>
+    <circle cx="528" cy="594" r="6" fill="#9e3028"/>
+    <circle cx="566" cy="648" r="5" fill="#9e3028"/>
+  </g>
+  <path d="M583 611 646 590l28 84-66 20z" fill="#d9c7a7" stroke="#4b3422" stroke-width="3" transform="rotate(8 628 642)"/>
+  <path d="M605 630h44M610 648h38M616 665h30" stroke="#4b3422" stroke-width="4" stroke-linecap="round"/>
+  <path d="M302 690c72 44 129 44 210 12" fill="none" stroke="#7e8b66" stroke-width="12" stroke-linecap="round" opacity=".72"/>
+  <path d="M262 806c62-120 8-232-52-318M218 826c10-120-44-178-94-238M704 824c-14-128 36-220 92-298M742 838c54-94 62-172 48-260" fill="none" stroke="#7e8b66" stroke-width="11" stroke-linecap="round" opacity=".66"/>
+  <g fill="#40543b" stroke="#b7c5a0" stroke-opacity=".5" stroke-width="2">
+    <path d="M204 481c-34-30-58-30-82 6 40 16 66 14 82-6z"/>
+    <path d="M236 556c-42-14-66-2-76 40 40 0 65-13 76-40z"/>
+    <path d="M774 506c39-22 62-16 76 22-41 8-66 1-76-22z"/>
+    <path d="M736 600c42-11 66 4 72 44-39-4-63-19-72-44z"/>
+  </g>
+  <g>
+    <path d="M174 350 302 314" stroke="#c8a260" stroke-width="3"/>
+    <circle cx="174" cy="350" r="13" fill="#9e3028" stroke="#f3ead8" stroke-width="3"/>
+    <rect x="286" y="282" width="172" height="68" rx="4" fill="#231d18" stroke="#c8a260" stroke-opacity=".7"/>
+    <text x="310" y="324" fill="#f3ead8" font-family="Georgia, serif" font-size="24">23:31 내부 개방</text>
+  </g>
+  <g>
+    <path d="M790 420 654 500" stroke="#c8a260" stroke-width="3"/>
+    <circle cx="790" cy="420" r="13" fill="#9e3028" stroke="#f3ead8" stroke-width="3"/>
+    <rect x="476" y="462" width="188" height="72" rx="4" fill="#231d18" stroke="#c8a260" stroke-opacity=".7"/>
+    <text x="500" y="505" fill="#f3ead8" font-family="Georgia, serif" font-size="24">깨진 와인잔</text>
+  </g>
+  <g>
+    <path d="M205 878 338 744" stroke="#c8a260" stroke-width="3"/>
+    <circle cx="205" cy="878" r="13" fill="#9e3028" stroke="#f3ead8" stroke-width="3"/>
+    <rect x="250" y="856" width="206" height="68" rx="4" fill="#231d18" stroke="#c8a260" stroke-opacity=".7"/>
+    <text x="278" y="899" fill="#f3ead8" font-family="Georgia, serif" font-size="24">녹색 안료</text>
+  </g>
+  <path d="M0 1000c160-84 292-78 438-10 174 82 342 74 522-4v134H0z" fill="#0d0b09" opacity=".7"/>
+</svg>
