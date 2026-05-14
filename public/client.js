@@ -5,6 +5,8 @@ const session = {
   playerId: localStorage.getItem("mm_playerId") || "",
 };
 
+let gameCatalog = [];
+let selectedGameId = localStorage.getItem("mm_gameId") || "greenhouse";
 let state = null;
 let events = null;
 let tick = null;
@@ -39,6 +41,37 @@ function phasePercent() {
   const total = state.currentPhase.minutes * 60 * 1000;
   const elapsed = Math.min(total, Math.max(0, total - (localRemainingMs ?? state.remainingMs)));
   return Math.round((elapsed / total) * 100);
+}
+
+async function loadGames() {
+  try {
+    const response = await fetch("/api/games");
+    const payload = await response.json();
+    gameCatalog = payload.games || [];
+    if (!gameCatalog.some((game) => game.id === selectedGameId)) {
+      selectedGameId = gameCatalog[0]?.id || "greenhouse";
+      localStorage.setItem("mm_gameId", selectedGameId);
+    }
+  } catch {
+    gameCatalog = [];
+  }
+}
+
+function selectedGame() {
+  return (
+    gameCatalog.find((game) => game.id === selectedGameId) ||
+    gameCatalog[0] || {
+      id: "greenhouse",
+      title: "검은 유리 온실의 밤",
+      tagline: "60분 온라인 머더미스터리",
+      description: "4-8명이 각자 다른 비밀을 가진 용의자가 되어 범인을 찾아낸다.",
+      coverImage: "/assets/greenhouse.svg",
+      minPlayers: 4,
+      maxPlayers: 8,
+      totalRuntimeMinutes: 60,
+      difficulty: "보통",
+    }
+  );
 }
 
 async function api(path, body = null, method = "POST") {
@@ -81,7 +114,9 @@ function clearSession() {
 function setState(nextState) {
   state = nextState;
   session.code = nextState.code;
+  selectedGameId = nextState.gameId || nextState.game?.id || selectedGameId;
   localStorage.setItem("mm_code", nextState.code);
+  localStorage.setItem("mm_gameId", selectedGameId);
   localRemainingMs = nextState.remainingMs;
   lastStateAt = Date.now();
   render();
@@ -115,6 +150,7 @@ function connectEvents() {
 }
 
 async function restore() {
+  await loadGames();
   if (!session.code || !session.playerId) {
     render();
     return;
@@ -145,22 +181,24 @@ function render() {
 }
 
 function renderGate(error = "") {
+  const game = selectedGame();
   app.innerHTML = html`
     <section class="gate">
       <div class="gate-art">
-        <img src="/assets/greenhouse.svg" alt="검은 유리 온실 사건 현장" />
+        <img src="${escapeHtml(game.coverImage)}" alt="${escapeHtml(game.title)} 대표 이미지" />
       </div>
       <div class="gate-copy">
-        <p class="eyebrow">60분 온라인 머더미스터리</p>
-        <h1>검은 유리 온실의 밤</h1>
+        <p class="eyebrow">${escapeHtml(game.tagline)}</p>
+        <h1>${escapeHtml(game.title)}</h1>
         <p class="lead">
-          4-8명이 각자 다른 비밀을 가진 용의자가 되어, 채팅과 공개 단서로 범인을 찾아낸다.
+          ${escapeHtml(game.description)}
         </p>
         <div class="case-stats" aria-label="게임 정보">
-          <span><strong>60</strong>분</span>
-          <span><strong>4-8</strong>명</span>
-          <span><strong>1</strong>회성 추리</span>
+          <span><strong>${game.totalRuntimeMinutes}</strong>분</span>
+          <span><strong>${game.minPlayers}-${game.maxPlayers}</strong>명</span>
+          <span><strong>${escapeHtml(game.difficulty)}</strong></span>
         </div>
+        ${renderGamePicker()}
         <div class="gate-actions">
           <form data-create-room class="panel form-panel">
             <h2>방 만들기</h2>
@@ -202,7 +240,7 @@ function renderLobby() {
       </header>
       <div class="lobby-grid">
         <section class="case-panel panel">
-          <img src="/assets/greenhouse.svg" alt="온실 평면도와 증거" />
+          <img src="${escapeHtml(state.game?.coverImage || "/assets/greenhouse.svg")}" alt="${escapeHtml(state.scenario.title)} 대표 이미지" />
           <div>
             <p class="code-label">방 코드</p>
             <p class="room-code">${state.code}</p>
@@ -260,6 +298,35 @@ function renderLobby() {
           <h2>플레이 원칙</h2>
           ${renderTextList(state.scenario.rules || [])}
         </section>
+      </div>
+    </section>
+  `;
+}
+
+function renderGamePicker() {
+  if (!gameCatalog.length) return "";
+  return html`
+    <section class="game-picker" aria-label="게임 선택">
+      <div class="section-head">
+        <h2>게임 선택</h2>
+        <span>${gameCatalog.length}</span>
+      </div>
+      <div class="game-options">
+        ${gameCatalog
+          .map(
+            (game) => html`
+              <button type="button" class="game-option ${game.id === selectedGameId ? "selected" : ""}" data-game-option="${escapeHtml(game.id)}">
+                <img src="${escapeHtml(game.coverImage)}" alt="" />
+                <span>
+                  <em>${escapeHtml(game.tagline)}</em>
+                  <strong>${escapeHtml(game.title)}</strong>
+                  <small>${game.totalRuntimeMinutes}분 · ${game.minPlayers}-${game.maxPlayers}명 · ${escapeHtml(game.difficulty)}</small>
+                  <b>${escapeHtml(game.description)}</b>
+                </span>
+              </button>
+            `,
+          )
+          .join("")}
       </div>
     </section>
   `;
@@ -431,7 +498,7 @@ function renderGame() {
         <aside class="side-stack">
           <section class="panel suspects">
             <div class="section-head">
-              <h2>용의자</h2>
+              <h2>${state.solutionChoices?.length ? "플레이어" : "용의자"}</h2>
               <span>${state.players.length}</span>
             </div>
             ${state.players
@@ -450,6 +517,31 @@ function renderGame() {
               )
               .join("")}
           </section>
+
+          ${
+            state.solutionChoices?.length
+              ? html`
+                  <section class="panel suspects">
+                    <div class="section-head">
+                      <h2>정답 후보</h2>
+                      <span>${state.solutionChoices.length}</span>
+                    </div>
+                    ${state.solutionChoices
+                      .map(
+                        (choice) => html`
+                          <article class="suspect">
+                            <div>
+                              <strong>${escapeHtml(choice.name)}</strong>
+                              <span>${escapeHtml(choice.archetype || "")}</span>
+                            </div>
+                          </article>
+                        `,
+                      )
+                      .join("")}
+                  </section>
+                `
+              : ""
+          }
 
           <section class="panel vote-panel">
             <div class="section-head">
@@ -508,14 +600,21 @@ function renderGame() {
 function renderVoteForm() {
   const canVote = state.currentPhase.key === "final" || state.currentPhase.key === "reveal";
   if (!canVote) return `<p class="muted">최종 진술/투표 단계에서 열린다.</p>`;
+  const targets = state.solutionChoices?.length
+    ? state.solutionChoices
+    : state.players.map((player) => ({
+        id: player.id,
+        name: player.roleName || player.name,
+        archetype: player.archetype,
+      }));
   return html`
     <form data-vote class="vote-form">
       <select name="targetId" required>
-        <option value="">범인 지목</option>
-        ${state.players
+        <option value="">${state.solutionChoices?.length ? "정답 선택" : "범인 지목"}</option>
+        ${targets
           .map(
-            (player) => html`
-              <option value="${player.id}">${escapeHtml(player.roleName || player.name)}</option>
+            (target) => html`
+              <option value="${escapeHtml(target.id)}">${escapeHtml(target.name)}${target.archetype ? ` · ${escapeHtml(target.archetype)}` : ""}</option>
             `,
           )
           .join("")}
@@ -546,7 +645,7 @@ document.addEventListener("submit", async (event) => {
 
   try {
     if (form.matches("[data-create-room]")) {
-      const payload = await api("/api/rooms", { name: data.name });
+      const payload = await api("/api/rooms", { name: data.name, gameId: selectedGameId });
       setSession(payload.state.code, payload.playerId);
       connectEvents();
       return;
@@ -584,6 +683,13 @@ document.addEventListener("click", async (event) => {
   if (!(target instanceof HTMLElement)) return;
 
   try {
+    const gameOption = target.closest("[data-game-option]");
+    if (gameOption instanceof HTMLElement) {
+      selectedGameId = gameOption.dataset.gameOption || selectedGameId;
+      localStorage.setItem("mm_gameId", selectedGameId);
+      render();
+      return;
+    }
     if (target.matches("[data-start]")) {
       await api(`/api/rooms/${state.code}/start`, { playerId: session.playerId });
       return;

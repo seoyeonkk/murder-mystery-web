@@ -1,6 +1,11 @@
-# 검은 유리 온실의 밤
+# 온라인 추리 게임룸
 
-60분 러닝타임의 온라인 머더미스터리 웹 프로토타입입니다. 의존성 없이 Node 기본 모듈만 사용합니다.
+여러 추리 게임을 방 코드로 함께 플레이하는 웹앱입니다. 의존성 없이 Node 기본 모듈만 사용합니다.
+
+## 포함 게임
+
+- `검은 유리 온실의 밤`: 4-8명, 60분, 정통 머더미스터리
+- `고양이 찻집의 사라진 초대장`: 1-2명, 25분, 입문용 추리
 
 ## 실행
 
@@ -37,29 +42,28 @@ npm run dev:solo
    - Build Command: `npm install`
    - Start Command: `npm start`
    - Health Check Path: `/healthz`
-   - Environment Variable: `MIN_PLAYERS=4`
 4. 배포가 끝나면 Render가 주는 `https://...onrender.com` 주소를 참가자에게 공유합니다.
 
 ### Railway
 
 1. GitHub 저장소를 Railway 프로젝트로 연결합니다.
 2. Start Command가 필요하면 `npm start`로 설정합니다.
-3. Environment Variable에 `MIN_PLAYERS=4`를 추가합니다.
-4. 생성된 public domain을 참가자에게 공유합니다.
+3. 생성된 public domain을 참가자에게 공유합니다.
 
 ### Docker 호스팅
 
 ```bash
 docker build -t murder-mystery-web .
-docker run -p 5173:5173 -e MIN_PLAYERS=4 murder-mystery-web
+docker run -p 5173:5173 murder-mystery-web
 ```
 
 운영 중 서버가 재시작되면 현재 방은 사라집니다. 장기적으로는 Redis/Supabase/Firebase 같은 외부 저장소를 붙이면 재시작에도 방을 유지할 수 있습니다.
 
 ## 포함 기능
 
-- 4-8명 방 생성/참가
-- 60분 진행표와 자동 단계 전환
+- 메인 화면 게임 선택
+- 게임별 1-2명/4-8명 방 생성과 참가
+- 게임별 진행표와 자동 단계 전환
 - 호스트 시작, 다음 단계, 타이머 정지/재개
 - 플레이어별 비밀 역할 카드
 - 플레이어별 관계, 개인 미션, 압박 질문

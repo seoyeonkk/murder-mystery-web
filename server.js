@@ -7,13 +7,14 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(__dirname, "public");
 const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "0.0.0.0";
-const MIN_PLAYERS = Math.min(8, Math.max(1, Number(process.env.MIN_PLAYERS || 4)));
-const MAX_PLAYERS = 8;
+const MIN_PLAYERS_OVERRIDE = process.env.MIN_PLAYERS
+  ? Math.max(1, Number(process.env.MIN_PLAYERS))
+  : null;
 
 const rooms = new Map();
 const streams = new Map();
 
-const PHASES = [
+const GREENHOUSE_PHASES = [
   {
     key: "briefing",
     label: "브리핑",
@@ -100,7 +101,7 @@ const PHASES = [
   },
 ];
 
-const SCENARIO = {
+const GREENHOUSE_SCENARIO = {
   title: "검은 유리 온실의 밤",
   place: "해무가 짙은 사설 미술관, 유리 온실 별관",
   premise:
@@ -493,7 +494,277 @@ const SCENARIO = {
   ],
 };
 
-const phaseIndexByKey = Object.fromEntries(PHASES.map((phase, index) => [phase.key, index]));
+const CAFE_PHASES = [
+  {
+    key: "briefing",
+    label: "사건 읽기",
+    minutes: 3,
+    instruction:
+      "등장인물과 규칙을 읽고, 오늘 풀어야 할 질문을 확인한다. 이 게임은 1명도 진행할 수 있는 입문 추리다.",
+    prompts: [
+      "사라진 것은 무엇이고, 마지막으로 본 시간은 언제인지 확인한다.",
+      "범인을 맞히기보다 '어디로 사라졌는지'를 먼저 생각한다.",
+      "확실한 사실과 추측을 나눠 적는다.",
+    ],
+  },
+  {
+    key: "act1",
+    label: "첫 조사",
+    minutes: 7,
+    instruction:
+      "초대장이 붙어 있던 게시판 주변, 우산꽂이, 계산대, 창가 테이블을 차례로 살펴본다.",
+    prompts: [
+      "젖은 흔적이 어디에서 어디로 이어지는지 말한다.",
+      "사람이 일부러 숨긴 행동인지, 우연히 옮겨진 흔적인지 구분한다.",
+      "가장 수상한 후보를 1명 고르고 이유를 남긴다.",
+    ],
+  },
+  {
+    key: "clue1",
+    label: "새 단서",
+    minutes: 5,
+    instruction:
+      "새로 공개된 단서를 이전 흔적과 연결한다. 입문 게임이라 단서끼리 직접 이어지도록 설계되어 있다.",
+    prompts: [
+      "설탕물, 발자국, 리본 조각이 같은 방향을 가리키는지 본다.",
+      "사람의 동기와 고양이의 행동 중 어느 쪽이 더 자연스러운지 비교한다.",
+      "틀린 가설 하나를 버린다.",
+    ],
+  },
+  {
+    key: "final",
+    label: "정답 고르기",
+    minutes: 7,
+    instruction:
+      "누가 초대장을 가져갔는지, 그리고 초대장이 어디에 있는지 최종 답을 고른다.",
+    prompts: [
+      "후보를 고를 때는 동기보다 물리적 흔적을 우선한다.",
+      "초대장이 젖지 않고 사라졌다는 점을 설명한다.",
+      "투표 사유에는 결정적 단서 2개를 적는다.",
+    ],
+  },
+  {
+    key: "reveal",
+    label: "해답 확인",
+    minutes: 3,
+    instruction:
+      "정답과 해설을 확인한다. 어떤 단서가 가장 빨리 길을 열어줬는지 짧게 복기한다.",
+    prompts: [
+      "헷갈리게 만든 단서와 확신을 준 단서를 나눈다.",
+      "다음 게임에서는 어떤 질문을 먼저 던질지 정한다.",
+    ],
+  },
+];
+
+const CAFE_SCENARIO = {
+  title: "고양이 찻집의 사라진 초대장",
+  place: "비 오는 저녁, 골목 끝 작은 찻집 '달빛다방'",
+  premise:
+    "동네 보드게임 모임 초대장이 찻집 게시판에서 사라졌다. 모임은 30분 뒤 시작되지만 초대장에는 참가 암호와 예약 좌석 번호가 적혀 있다. 가게 안에는 단골 손님 몇 명, 우산꽂이, 장난꾸러기 고양이 밤이뿐이다.",
+  rules: [
+    "이 게임은 1명도 혼자 읽고 추리할 수 있다.",
+    "2명이 할 때는 각자 역할 카드의 개인 단서를 천천히 공개한다.",
+    "거짓말보다 추론 연습이 중심이다. 헷갈리면 공개 타임라인부터 다시 본다.",
+    "최종 답은 후보 중 하나를 고르고, 사유에 결정적 단서 2개를 적는다.",
+  ],
+  timeline: [
+    { time: "18:10", event: "초대장이 계산대 옆 게시판에 붙는다." },
+    { time: "18:18", event: "민우가 우산을 접어 우산꽂이에 넣는다." },
+    { time: "18:22", event: "고양이 밤이가 창가 테이블 아래로 뛰어간다." },
+    { time: "18:25", event: "소라가 게시판 앞에서 사진을 찍는다." },
+    { time: "18:31", event: "점장 태준이 설탕 시럽을 닦다가 잠시 계산대를 비운다." },
+    { time: "18:36", event: "초대장이 게시판에서 사라진 것이 발견된다." },
+  ],
+  victim: "사라진 초대장",
+  killerRoleId: null,
+  solutionChoices: [
+    { id: "cat-bami", name: "밤이", archetype: "찻집 고양이" },
+    { id: "minu", name: "민우", archetype: "젖은 우산을 든 손님" },
+    { id: "sora", name: "소라", archetype: "사진을 찍은 단골" },
+    { id: "taejun", name: "태준", archetype: "찻집 점장" },
+  ],
+  truth:
+    "정답은 고양이 밤이다. 밤이가 게시판 아래 장식 리본을 물고 놀다가 초대장 핀을 건드렸고, 떨어진 초대장은 젖은 우산 손잡이에 붙었다. 민우가 우산을 우산꽂이에 넣으면서 초대장이 함께 끌려가 우산꽂이 뒤쪽에 끼었다. 소라는 사진을 찍었을 뿐이고, 태준은 설탕 시럽을 닦느라 게시판을 보지 못했다. 결정적 단서는 젖은 발자국, 리본 실 조각, 우산꽂이 뒤의 마른 종이 모서리다.",
+  roles: [
+    {
+      id: "rookie-detective",
+      name: "윤하늘",
+      archetype: "초보 탐정",
+      publicInfo:
+        "동네 보드게임 모임에 처음 온 참가자. 추리 게임은 익숙하지 않지만 관찰력이 좋다.",
+      privateInfo:
+        "18:22에 밤이가 창가 테이블 아래로 뛰어가며 빨간 리본을 물고 있는 것을 봤다. 그때는 장난감인 줄 알았다.",
+      objective:
+        "초대장을 가져간 후보와 초대장의 위치를 맞힌다. 사람을 너무 빨리 의심하지 않는다.",
+      personalClue:
+        "게시판 아래 바닥에 젖은 발자국 3개가 있다. 사람 발자국이 아니라 작은 동물 발자국처럼 보인다.",
+      startLie:
+        "처음에는 민우의 젖은 우산이 가장 수상하다고 말해도 된다.",
+      timelineClaim:
+        "18:18 우산꽂이 근처, 18:22 창가 테이블, 18:36 게시판 앞.",
+      relationships: [
+        "민우는 우산을 급하게 접느라 주변을 잘 보지 못했다.",
+        "소라는 게시판 사진을 가지고 있을 수 있다.",
+        "밤이는 빨간 리본이나 끈을 보면 달려드는 습관이 있다.",
+      ],
+      secretTasks: [
+        "첫 조사 단계에서는 발자국 단서를 공개한다.",
+        "새 단서 단계에서는 리본과 발자국을 연결한다.",
+        "최종 답에는 초대장의 위치도 함께 설명한다.",
+      ],
+      pressureQuestions: [
+        "민우에게 우산을 넣을 때 종이가 붙어 있었는지 묻는다.",
+        "소라에게 사진 속 게시판 아래가 보이는지 묻는다.",
+        "태준에게 밤이가 리본을 좋아하는지 확인한다.",
+      ],
+    },
+    {
+      id: "note-keeper",
+      name: "서지우",
+      archetype: "기록 담당",
+      publicInfo:
+        "모임 참가자 명단을 정리하러 온 기록 담당. 작은 시간 차이를 잘 기억한다.",
+      privateInfo:
+        "소라가 찍은 사진을 잠깐 봤다. 사진 속 초대장은 아직 게시판에 있고, 아래쪽 핀이 살짝 들려 있다.",
+      objective:
+        "사진, 우산꽂이, 리본 실을 연결해 초대장이 실수로 옮겨졌다는 결론을 돕는다.",
+      personalClue:
+        "우산꽂이 뒤쪽에 마른 종이 모서리 같은 것이 보인다. 손을 뻗어 꺼내야 확인할 수 있다.",
+      startLie:
+        "처음에는 사진을 찍은 소라가 초대장을 가져갔을지도 모른다고 의심한다.",
+      timelineClaim:
+        "18:25 게시판 사진 확인, 18:31 계산대 앞, 18:36 우산꽂이 근처.",
+      relationships: [
+        "하늘은 발자국을 봤지만 사진 단서는 모른다.",
+        "소라는 초대장을 훔칠 이유가 약하다.",
+        "태준은 밤이가 장식 리본을 자주 물어뜯는다고 알고 있다.",
+      ],
+      secretTasks: [
+        "소라를 너무 오래 몰아붙이지 말고 사진 단서를 확인한다.",
+        "우산꽂이 뒤쪽을 조사해야 한다는 제안을 한다.",
+        "최종 답에는 '고의 절도 아님'을 분명히 적는다.",
+      ],
+      pressureQuestions: [
+        "하늘에게 발자국 모양을 자세히 설명해달라고 한다.",
+        "민우에게 우산 손잡이가 젖어 있었는지 묻는다.",
+        "태준에게 밤이가 최근에도 종이나 리본을 물고 간 적 있는지 묻는다.",
+      ],
+    },
+  ],
+  clues: [
+    {
+      id: "notice-board",
+      unlockPhase: "briefing",
+      title: "빈 게시판",
+      body:
+        "초대장이 있던 자리에는 핀 하나만 비스듬히 꽂혀 있다. 종이가 찢긴 흔적은 없고, 누군가 조심스럽게 떼어낸 것 같지도 않다.",
+    },
+    {
+      id: "photo",
+      unlockPhase: "briefing",
+      title: "소라의 사진",
+      body:
+        "18:25 사진에는 초대장이 아직 게시판에 붙어 있다. 아래쪽 핀이 살짝 들려 있고, 게시판 아래에는 빨간 리본 장식이 보인다.",
+    },
+    {
+      id: "pawprints",
+      unlockPhase: "act1",
+      title: "작은 젖은 발자국",
+      body:
+        "게시판 아래에서 창가 테이블 쪽으로 작은 발자국이 이어진다. 발자국은 사람 신발이 아니라 고양이 발 모양에 가깝다.",
+    },
+    {
+      id: "umbrella",
+      unlockPhase: "act1",
+      title: "우산꽂이",
+      body:
+        "우산꽂이 바닥은 젖어 있지만 뒤쪽 벽면은 마른 상태다. 뒤쪽 틈에 종이 모서리처럼 보이는 밝은 색이 있다.",
+    },
+    {
+      id: "red-thread",
+      unlockPhase: "clue1",
+      title: "빨간 실 한 올",
+      body:
+        "게시판 핀 아래에 빨간 리본 실 한 올이 끼어 있다. 밤이가 좋아하는 창가 장난감 리본과 같은 색이다.",
+    },
+    {
+      id: "syrup",
+      unlockPhase: "clue1",
+      title: "설탕 시럽 자국",
+      body:
+        "계산대에는 태준이 닦던 설탕 시럽 자국이 남아 있다. 시럽은 게시판 쪽이 아니라 계산대 안쪽에만 묻어 있다.",
+    },
+    {
+      id: "corner",
+      unlockPhase: "final",
+      title: "마른 종이 모서리",
+      body:
+        "우산꽂이 뒤쪽에서 마른 종이 모서리가 보인다. 젖은 우산에 붙었다가 뒤로 밀려 들어간 것처럼 구겨져 있다.",
+    },
+  ],
+};
+
+const GAMES = {
+  greenhouse: {
+    id: "greenhouse",
+    title: GREENHOUSE_SCENARIO.title,
+    tagline: "60분 정통 머더미스터리",
+    description:
+      "4-8명이 각자 비밀을 가진 용의자가 되어 대화와 단서로 범인을 찾아내는 본격 추리극.",
+    difficulty: "보통",
+    coverImage: "/assets/greenhouse.svg",
+    minPlayers: 4,
+    maxPlayers: 8,
+    phases: GREENHOUSE_PHASES,
+    scenario: GREENHOUSE_SCENARIO,
+  },
+  cafe: {
+    id: "cafe",
+    title: CAFE_SCENARIO.title,
+    tagline: "25분 입문 추리",
+    description:
+      "1명은 혼자 읽고 풀고, 2명은 단서를 나눠 읽으며 연습할 수 있는 가벼운 미스터리.",
+    difficulty: "쉬움",
+    coverImage: "/assets/teahouse.svg",
+    minPlayers: 1,
+    maxPlayers: 2,
+    phases: CAFE_PHASES,
+    scenario: CAFE_SCENARIO,
+  },
+};
+
+const DEFAULT_GAME_ID = "greenhouse";
+
+function gameConfig(gameId) {
+  return GAMES[gameId] || GAMES[DEFAULT_GAME_ID];
+}
+
+function gameConfigForRoom(room) {
+  return gameConfig(room.gameId);
+}
+
+function minPlayersForGame(game) {
+  if (!MIN_PLAYERS_OVERRIDE) return game.minPlayers;
+  return Math.min(game.minPlayers, game.maxPlayers, MIN_PLAYERS_OVERRIDE);
+}
+
+function gameCatalog() {
+  return Object.values(GAMES).map((game) => ({
+    id: game.id,
+    title: game.title,
+    tagline: game.tagline,
+    description: game.description,
+    difficulty: game.difficulty,
+    coverImage: game.coverImage,
+    minPlayers: minPlayersForGame(game),
+    maxPlayers: game.maxPlayers,
+    totalRuntimeMinutes: game.phases.reduce((sum, phase) => sum + phase.minutes, 0),
+  }));
+}
+
+function phaseIndexMap(phases) {
+  return Object.fromEntries(phases.map((phase, index) => [phase.key, index]));
+}
 
 function now() {
   return Date.now();
@@ -521,17 +792,26 @@ function shuffle(items) {
   return copy;
 }
 
-function selectedRoles(playerCount) {
-  const killer = SCENARIO.roles.find((role) => role.id === SCENARIO.killerRoleId);
-  const others = SCENARIO.roles.filter((role) => role.id !== SCENARIO.killerRoleId);
+function selectedRoles(game, playerCount) {
+  const { scenario } = game;
+  if (playerCount > scenario.roles.length) {
+    throw httpError(400, "이 게임의 역할 수보다 참가자가 많습니다.");
+  }
+  if (!scenario.killerRoleId) {
+    return shuffle(scenario.roles).slice(0, playerCount);
+  }
+  const killer = scenario.roles.find((role) => role.id === scenario.killerRoleId);
+  const others = scenario.roles.filter((role) => role.id !== scenario.killerRoleId);
   return shuffle([killer, ...shuffle(others).slice(0, Math.max(0, playerCount - 1))]);
 }
 
-function createRoom(hostName) {
+function createRoom(hostName, gameId) {
+  const game = gameConfig(gameId);
   const code = roomCode();
   const hostId = id("player");
   const room = {
     code,
+    gameId: game.id,
     status: "lobby",
     hostId,
     players: [
@@ -555,7 +835,7 @@ function createRoom(hostName) {
         type: "system",
         at: now(),
         author: "시스템",
-        text: "방이 만들어졌다. 4-8명이 모이면 호스트가 게임을 시작할 수 있다.",
+        text: `방이 만들어졌다. ${minPlayersForGame(game)}-${game.maxPlayers}명이 모이면 호스트가 게임을 시작할 수 있다.`,
       },
     ],
     createdAt: now(),
@@ -593,13 +873,17 @@ function assertHost(room, playerId) {
 
 function startRoom(room, playerId) {
   assertHost(room, playerId);
+  const game = gameConfigForRoom(room);
   if (room.status !== "lobby") throw httpError(409, "이미 시작된 방입니다.");
-  if (room.players.length < MIN_PLAYERS) {
-    throw httpError(400, `최소 ${MIN_PLAYERS}명이 필요합니다.`);
+  const minPlayers = minPlayersForGame(game);
+  if (room.players.length < minPlayers) {
+    throw httpError(400, `최소 ${minPlayers}명이 필요합니다.`);
   }
-  if (room.players.length > MAX_PLAYERS) throw httpError(400, `최대 ${MAX_PLAYERS}명까지 가능합니다.`);
+  if (room.players.length > game.maxPlayers) {
+    throw httpError(400, `최대 ${game.maxPlayers}명까지 가능합니다.`);
+  }
 
-  const roles = selectedRoles(room.players.length);
+  const roles = selectedRoles(game, room.players.length);
   shuffle(room.players).forEach((player, index) => {
     player.roleId = roles[index].id;
     player.vote = null;
@@ -608,20 +892,21 @@ function startRoom(room, playerId) {
   room.status = "playing";
   room.phaseIndex = 0;
   room.phaseStartedAt = now();
-  room.phaseEndsAt = room.phaseStartedAt + PHASES[0].minutes * 60 * 1000;
+  room.phaseEndsAt = room.phaseStartedAt + game.phases[0].minutes * 60 * 1000;
   room.messages.push({
     id: id("msg"),
     type: "system",
     at: now(),
     author: "시스템",
-    text: "게임이 시작됐다. 역할 카드를 읽고 브리핑을 진행한다.",
+    text: "게임이 시작됐다. 역할 카드를 읽고 첫 단계를 진행한다.",
   });
 }
 
 function advanceRoom(room, playerId) {
   assertHost(room, playerId);
+  const game = gameConfigForRoom(room);
   if (room.status !== "playing") throw httpError(409, "진행 중인 게임이 아닙니다.");
-  if (room.phaseIndex >= PHASES.length - 1) {
+  if (room.phaseIndex >= game.phases.length - 1) {
     room.status = "finished";
     room.messages.push({
       id: id("msg"),
@@ -634,7 +919,7 @@ function advanceRoom(room, playerId) {
   }
   room.phaseIndex += 1;
   room.phaseStartedAt = now();
-  room.phaseEndsAt = room.phaseStartedAt + PHASES[room.phaseIndex].minutes * 60 * 1000;
+  room.phaseEndsAt = room.phaseStartedAt + game.phases[room.phaseIndex].minutes * 60 * 1000;
   room.paused = false;
   room.pauseRemainingMs = null;
   room.messages.push({
@@ -642,7 +927,7 @@ function advanceRoom(room, playerId) {
     type: "system",
     at: now(),
     author: "시스템",
-    text: `${PHASES[room.phaseIndex].label} 단계로 넘어갔다.`,
+    text: `${game.phases[room.phaseIndex].label} 단계로 넘어갔다.`,
   });
 }
 
@@ -675,17 +960,18 @@ function togglePause(room, playerId) {
 
 function autoAdvance(room) {
   if (room.status !== "playing" || room.paused || !room.phaseEndsAt) return false;
+  const game = gameConfigForRoom(room);
   let changed = false;
-  while (room.phaseIndex < PHASES.length - 1 && now() >= room.phaseEndsAt) {
+  while (room.phaseIndex < game.phases.length - 1 && now() >= room.phaseEndsAt) {
     room.phaseIndex += 1;
     room.phaseStartedAt = now();
-    room.phaseEndsAt = room.phaseStartedAt + PHASES[room.phaseIndex].minutes * 60 * 1000;
+    room.phaseEndsAt = room.phaseStartedAt + game.phases[room.phaseIndex].minutes * 60 * 1000;
     room.messages.push({
       id: id("msg"),
       type: "system",
       at: now(),
       author: "시스템",
-      text: `${PHASES[room.phaseIndex].label} 단계로 자동 진행됐다.`,
+      text: `${game.phases[room.phaseIndex].label} 단계로 자동 진행됐다.`,
     });
     changed = true;
   }
@@ -693,8 +979,11 @@ function autoAdvance(room) {
 }
 
 function addPlayer(room, name) {
+  const game = gameConfigForRoom(room);
   if (room.status !== "lobby") throw httpError(409, "이미 시작된 방에는 참가할 수 없습니다.");
-  if (room.players.length >= 8) throw httpError(400, "이 방은 이미 8명으로 가득 찼습니다.");
+  if (room.players.length >= game.maxPlayers) {
+    throw httpError(400, `이 방은 이미 ${game.maxPlayers}명으로 가득 찼습니다.`);
+  }
   const player = {
     id: id("player"),
     name: cleanName(name),
@@ -731,13 +1020,15 @@ function addMessage(room, playerId, text) {
 
 function castVote(room, playerId, targetId, reason) {
   const player = assertPlayer(room, playerId);
+  const game = gameConfigForRoom(room);
   if (room.status !== "playing") throw httpError(409, "진행 중인 게임이 아닙니다.");
-  if (PHASES[room.phaseIndex].key !== "final" && PHASES[room.phaseIndex].key !== "reveal") {
+  if (game.phases[room.phaseIndex].key !== "final" && game.phases[room.phaseIndex].key !== "reveal") {
     throw httpError(400, "최종 진술/투표 단계에서만 투표할 수 있습니다.");
   }
-  const target = assertPlayer(room, targetId);
+  const target = findVoteTarget(room, targetId);
+  if (!target) throw httpError(400, "투표 대상을 찾을 수 없습니다.");
   player.vote = {
-    targetId: target.id,
+    targetId,
     reason: String(reason || "").trim().slice(0, 160),
     at: now(),
   };
@@ -750,13 +1041,23 @@ function castVote(room, playerId, targetId, reason) {
   });
 }
 
-function roleById(roleId) {
-  return SCENARIO.roles.find((role) => role.id === roleId) || null;
+function roleById(game, roleId) {
+  return game.scenario.roles.find((role) => role.id === roleId) || null;
+}
+
+function findVoteTarget(room, targetId) {
+  const game = gameConfigForRoom(room);
+  return (
+    game.scenario.solutionChoices?.find((choice) => choice.id === targetId) ||
+    findPlayer(room, targetId) ||
+    null
+  );
 }
 
 function publicPlayers(room, reveal) {
+  const game = gameConfigForRoom(room);
   return room.players.map((player) => {
-    const role = roleById(player.roleId);
+    const role = roleById(game, player.roleId);
     return {
       id: player.id,
       name: player.name,
@@ -765,7 +1066,7 @@ function publicPlayers(room, reveal) {
       roleName: role?.name || null,
       archetype: role?.archetype || null,
       publicInfo: role?.publicInfo || null,
-      isKiller: reveal ? role?.id === SCENARIO.killerRoleId : undefined,
+      isKiller: reveal && game.scenario.killerRoleId ? role?.id === game.scenario.killerRoleId : undefined,
       voted: Boolean(player.vote),
     };
   });
@@ -773,7 +1074,7 @@ function publicPlayers(room, reveal) {
 
 function voteSummary(room, reveal, viewerId) {
   return room.players.map((player) => {
-    const target = player.vote ? findPlayer(room, player.vote.targetId) : null;
+    const target = player.vote ? findVoteTarget(room, player.vote.targetId) : null;
     return {
       voterId: player.id,
       voterName: reveal || player.id === viewerId ? player.name : null,
@@ -787,16 +1088,19 @@ function voteSummary(room, reveal, viewerId) {
 }
 
 function visibleClues(room) {
+  const game = gameConfigForRoom(room);
+  const phaseIndexByKey = phaseIndexMap(game.phases);
   const currentIndex = room.status === "lobby" ? 0 : room.phaseIndex;
-  return SCENARIO.clues.filter((clue) => phaseIndexByKey[clue.unlockPhase] <= currentIndex);
+  return game.scenario.clues.filter((clue) => phaseIndexByKey[clue.unlockPhase] <= currentIndex);
 }
 
 function sanitize(room, viewerId) {
   autoAdvance(room);
+  const game = gameConfigForRoom(room);
   const viewer = findPlayer(room, viewerId);
-  const phase = PHASES[room.phaseIndex];
+  const phase = game.phases[room.phaseIndex];
   const reveal = room.status === "finished" || phase?.key === "reveal";
-  const myRole = viewer?.roleId ? roleById(viewer.roleId) : null;
+  const myRole = viewer?.roleId ? roleById(game, viewer.roleId) : null;
   const remainingMs =
     room.status === "playing"
       ? room.paused
@@ -810,24 +1114,34 @@ function sanitize(room, viewerId) {
 
   return {
     code: room.code,
+    gameId: game.id,
     status: room.status,
     hostId: room.hostId,
     viewerId,
     isHost: viewerId === room.hostId,
+    game: {
+      id: game.id,
+      title: game.title,
+      tagline: game.tagline,
+      description: game.description,
+      difficulty: game.difficulty,
+      coverImage: game.coverImage,
+    },
     scenario: {
-      title: SCENARIO.title,
-      place: SCENARIO.place,
-      premise: SCENARIO.premise,
-      rules: SCENARIO.rules,
-      timeline: SCENARIO.timeline,
-      victim: SCENARIO.victim,
-      truth: reveal ? SCENARIO.truth : null,
+      title: game.scenario.title,
+      place: game.scenario.place,
+      premise: game.scenario.premise,
+      rules: game.scenario.rules,
+      timeline: game.scenario.timeline,
+      victim: game.scenario.victim,
+      truth: reveal ? game.scenario.truth : null,
     },
     players: publicPlayers(room, reveal),
-    maxPlayers: MAX_PLAYERS,
-    minPlayers: MIN_PLAYERS,
+    solutionChoices: game.scenario.solutionChoices || null,
+    maxPlayers: game.maxPlayers,
+    minPlayers: minPlayersForGame(game),
     myRole,
-    phases: PHASES,
+    phases: game.phases,
     phaseIndex: room.phaseIndex,
     currentPhase: phase,
     phaseStartedAt: room.phaseStartedAt,
@@ -839,7 +1153,7 @@ function sanitize(room, viewerId) {
     messages: room.messages.slice(-80),
     votes: voteSummary(room, reveal, viewerId),
     reveal,
-    totalRuntimeMinutes: PHASES.reduce((sum, phaseItem) => sum + phaseItem.minutes, 0),
+    totalRuntimeMinutes: game.phases.reduce((sum, phaseItem) => sum + phaseItem.minutes, 0),
   };
 }
 
@@ -882,9 +1196,14 @@ function sendJson(res, status, payload) {
 
 async function handleApi(req, res, url) {
   try {
+    if (req.method === "GET" && url.pathname === "/api/games") {
+      sendJson(res, 200, { games: gameCatalog() });
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/rooms") {
       const body = await readJson(req);
-      const { room, playerId } = createRoom(body.name);
+      const { room, playerId } = createRoom(body.name, body.gameId);
       sendJson(res, 201, { playerId, state: sanitize(room, playerId) });
       broadcast(room);
       return;
