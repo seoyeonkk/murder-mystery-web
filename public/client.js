@@ -156,6 +156,11 @@ function renderGate(error = "") {
         <p class="lead">
           4-8명이 각자 다른 비밀을 가진 용의자가 되어, 채팅과 공개 단서로 범인을 찾아낸다.
         </p>
+        <div class="case-stats" aria-label="게임 정보">
+          <span><strong>60</strong>분</span>
+          <span><strong>4-8</strong>명</span>
+          <span><strong>1</strong>회성 추리</span>
+        </div>
         <div class="gate-actions">
           <form data-create-room class="panel form-panel">
             <h2>방 만들기</h2>
@@ -203,6 +208,7 @@ function renderLobby() {
             <p class="room-code">${state.code}</p>
             <p>${escapeHtml(state.scenario.premise)}</p>
             <p class="muted">총 러닝타임 ${state.totalRuntimeMinutes}분 · ${state.minPlayers}-${state.maxPlayers}명</p>
+            <p class="case-note">방 코드를 참가자에게 공유하면 같은 사건 기록에 접속합니다.</p>
           </div>
         </section>
         <section class="panel">
