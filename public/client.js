@@ -523,7 +523,7 @@ function renderGame() {
               ? html`
                   <section class="panel suspects">
                     <div class="section-head">
-                      <h2>정답 후보</h2>
+                      <h2>참여 인물</h2>
                       <span>${state.solutionChoices.length}</span>
                     </div>
                     ${state.solutionChoices
@@ -610,7 +610,7 @@ function renderVoteForm() {
   return html`
     <form data-vote class="vote-form">
       <select name="targetId" required>
-        <option value="">${state.solutionChoices?.length ? "정답 선택" : "범인 지목"}</option>
+        <option value="">${state.solutionChoices?.length ? "최종 지목" : "범인 지목"}</option>
         ${targets
           .map(
             (target) => html`
